@@ -62,6 +62,8 @@ CACHES = {
 }
 
 # Cache del template in produzione
+# Disabilita APP_DIRS perché incompatibile con la definizione esplicita di 'loaders'
+TEMPLATES[0]['APP_DIRS'] = False
 TEMPLATES[0]['OPTIONS']['loaders'] = [
     ('django.template.loaders.cached.Loader', [
         'django.template.loaders.filesystem.Loader',
