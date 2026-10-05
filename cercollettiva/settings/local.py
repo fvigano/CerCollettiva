@@ -5,8 +5,8 @@ import socket
 
 ENVIRONMENT = 'local'
 
-# Debug
-DEBUG = True
+# Debug (default True in sviluppo, ma disattivabile via env DEBUG=False)
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't', 'yes')
 
 
 GEOCODING_SETTINGS = {

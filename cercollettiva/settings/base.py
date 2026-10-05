@@ -14,7 +14,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-your-secret-key-here')
 ***REMOVED***
 ENCRYPTED_FIELDS_KEYDIR = None  # Usa la chiave in settings invece di file
 
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't', 'yes')
 
 # Host consentiti di base (vuoto per sicurezza, da sovrascrivere in local/production)
 ALLOWED_HOSTS = []
