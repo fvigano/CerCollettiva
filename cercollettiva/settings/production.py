@@ -13,10 +13,14 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY non impostata nelle variabili d'ambiente")
 
-# Host consentiti
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+# Host consentiti (supporto flessibile per Azure App Service e domini personalizzati)
+allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '*')
+ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(',') if h.strip()]
 if not ALLOWED_HOSTS:
-    raise ValueError("ALLOWED_HOSTS non impostato nelle variabili d'ambiente")
+    ALLOWED_HOSTS = ['*']
+for azure_host in ['127.0.0.1', 'localhost', '169.254.130.1', '.azurewebsites.net']:
+    if azure_host not in ALLOWED_HOSTS and '*' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(azure_host)
 
 # Database PostgreSQL produzione
 DATABASES = {
@@ -121,7 +125,8 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 
 # File statici e media
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+WHITENOISE_MANIFEST_STRICT = False
 
 # MQTT produzione
 MQTT_SETTINGS = {
@@ -174,7 +179,7 @@ if os.getenv('SENTRY_DSN'):
         environment=os.getenv('SENTRY_ENVIRONMENT', 'production'),
     )
 
-# Logging produzione
+# Logging produzione (console per Azure Log Stream + file)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -185,6 +190,10 @@ LOGGING = {
         },
     },
     'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': LOGS_DIR / 'cercollettiva.log',
@@ -202,22 +211,27 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['file'],
-            'level': 'WARNING',
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
             'propagate': True,
         },
+        'django.request': {
+            'handlers': ['console', 'file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
         'django.security': {
-            'handlers': ['file'],
+            'handlers': ['console', 'file'],
             'level': 'WARNING',
             'propagate': False,
         },
         'energy': {
-            'handlers': ['file'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': True,
         },
         'energy.mqtt': {
-            'handlers': ['mqtt_file'],
+            'handlers': ['console', 'mqtt_file'],
             'level': 'INFO',
             'propagate': False,
         },

@@ -6,7 +6,7 @@ from channels.auth import AuthMiddlewareStack
 from channels.security.websocket import AllowedHostsOriginValidator
 from energy.routing import websocket_urlpatterns
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cercollettiva.settings.local')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', os.getenv('DJANGO_SETTINGS_MODULE', 'cercollettiva.settings.production'))
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
