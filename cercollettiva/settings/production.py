@@ -42,24 +42,22 @@ DATABASES = {
     }
 }
 
-# Cache Redis
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PARSER_CLASS': 'redis.connection.HiredisParser',
-            'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
-            'CONNECTION_POOL_CLASS_KWARGS': {
-                'max_connections': 50,
-                'timeout': 20,
-            },
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'IGNORE_EXCEPTIONS': True,
+# Cache: Redis se disponibile tramite REDIS_URL, altrimenti fallback su LocMemCache
+REDIS_URL = os.getenv('REDIS_URL')
+if REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
         }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'cercollettiva-production-cache',
+        }
+    }
 
 # Cache del template in produzione
 # Disabilita APP_DIRS perché incompatibile con la definizione esplicita di 'loaders'
@@ -71,17 +69,24 @@ TEMPLATES[0]['OPTIONS']['loaders'] = [
     ]),
 ]
 
-# Configurazione Channels per produzione
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [os.getenv('REDIS_URL')],
-            'capacity': 1500,
-            'expiry': 10,
+# Configurazione Channels per produzione (Redis se configurato, altrimenti InMemory)
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+                'capacity': 1500,
+                'expiry': 10,
+            },
         },
-    },
-}
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
 
 # Configurazione email produzione
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -106,8 +111,8 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
-# Configurazione session
-SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+# Configurazione session (cached_db se c'è Redis, altrimenti db standard PostgreSQL)
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db' if REDIS_URL else 'django.contrib.sessions.backends.db'
 SESSION_CACHE_ALIAS = 'default'
 SESSION_COOKIE_AGE = 86400  # 24 ore
 SESSION_COOKIE_HTTPONLY = True
@@ -158,12 +163,12 @@ REST_FRAMEWORK = {
 
 # Sentry per monitoraggio errori
 if os.getenv('SENTRY_DSN'):
+    sentry_integrations = [DjangoIntegration()]
+    if REDIS_URL:
+        sentry_integrations.append(RedisIntegration())
     sentry_sdk.init(
         dsn=os.getenv('SENTRY_DSN'),
-        integrations=[
-            DjangoIntegration(),
-            RedisIntegration(),
-        ],
+        integrations=sentry_integrations,
         traces_sample_rate=float(os.getenv('SENTRY_SAMPLE_RATE', '0.2')),
         send_default_pii=False,
         environment=os.getenv('SENTRY_ENVIRONMENT', 'production'),
