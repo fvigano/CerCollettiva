@@ -11,7 +11,7 @@ load_dotenv()
 # Configurazioni di base
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-your-secret-key-here')
-***REMOVED***
+FIELD_ENCRYPTION_KEY = os.getenv('FIELD_ENCRYPTION_KEY')
 ENCRYPTED_FIELDS_KEYDIR = None  # Usa la chiave in settings invece di file
 
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't', 'yes')
